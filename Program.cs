@@ -1,128 +1,111 @@
 using Microsoft.EntityFrameworkCore;
 using MarketingLaPazAPI.Infraestructura.Data;
+using MarketingLaPazAPI.Infraestructura.Repositorios;
+using MarketingLaPazAPI.Core.Interfaces;
+using MarketingLaPazAPI.Core.Servicios;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ===== DIAGNÓSTICO DETALLADO =====
-Console.WriteLine("=== INICIANDO DIAGNÓSTICO DATABASE ===");
+// Obtener la cadena de conexión de Railway
+var connectionString = Environment.GetEnvironmentVariable("DATABASE_URL");
+Console.WriteLine($"Cadena de conexión: {connectionString}");
 
-var databaseUrl = Environment.GetEnvironmentVariable("DATABASE");
-Console.WriteLine($"1. DATABASE presente: {!string.IsNullOrEmpty(database)}");
-
-if (!string.IsNullOrEmpty(databaseUrl))
-{
-    Console.WriteLine($"2. DATABASE valor: {database}");
-    
-    try
-    {
-        var parsedConnection = ParseDatabaseUrl(database);
-        Console.WriteLine($"3. Connection string parseada: {parsedConnection}");
-        
-        // Probemos la conexión inmediatamente
-        Console.WriteLine("4. Probando conexión...");
-        using var dbContext = new MarketingDbContext(
-            new DbContextOptionsBuilder<MarketingDbContext>()
-                .UseNpgsql(parsedConnection)
-                .Options);
-                
-        var canConnect = dbContext.Database.CanConnect();
-        Console.WriteLine($"5. ¿Puede conectar?: {canConnect}");
-        
-        if (!canConnect)
-        {
-            Console.WriteLine("6. ERROR: No se puede conectar a la BD");
-        }
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"7. ERROR en parseo/conexión: {ex.Message}");
-        Console.WriteLine($"8. StackTrace: {ex.StackTrace}");
-    }
-}
-else
-{
-    Console.WriteLine("2. DATABASE está VACÍA o NULL");
-    
-    // Mostrar todas las variables de entorno para debug
-    Console.WriteLine("=== VARIABLES DE ENTORNO ===");
-    foreach (var envVar in Environment.GetEnvironmentVariables().Cast<System.Collections.DictionaryEntry>())
-    {
-        if (envVar.Key.ToString().Contains("DATABASE") || envVar.Key.ToString().Contains("POSTGRES"))
-        {
-            Console.WriteLine($"{envVar.Key} = {envVar.Value}");
-        }
-    }
-}
-
-// ===== CONFIGURACIÓN NORMAL =====
+// Add services to the container
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Configurar DbContext
-if (!string.IsNullOrEmpty(databaseUrl))
+// Entity Framework con PostgreSQL para Railway
+if (!string.IsNullOrEmpty(connectionString))
 {
-    try
-    {
-        var parsedConnection = ParseDatabaseUrl(databaseUrl);
-        builder.Services.AddDbContext<MarketingDbContext>(options =>
-            options.UseNpgsql(parsedConnection));
-        Console.WriteLine("✅ DbContext configurado con Railway PostgreSQL");
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"❌ Error configurando DbContext: {ex.Message}");
-        throw;
-    }
+    // Parsear DATABASE_URL de Railway
+    var parsedConnectionString = ParseDatabaseUrl(connectionString);
+    builder.Services.AddDbContext<MarketingDbContext>(options =>
+        options.UseNpgsql(parsedConnectionString));
 }
 else
 {
-    Console.WriteLine("🔄 Usando base de datos local");
+    // Para desarrollo local
     builder.Services.AddDbContext<MarketingDbContext>(options =>
         options.UseNpgsql(builder.Configuration.GetConnectionString("MarketingDB")));
 }
 
+// CORS para producción
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("MarketingPolicy", policy =>
+    {
+        policy.WithOrigins(
+                "http://localhost:3000", 
+                "http://127.0.0.1:5500",
+                "https://tu-dominio.railway.app"  // Agrega tu dominio de Railway
+            )
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
+    });
+});
+
+// Repositorios
+builder.Services.AddScoped<ICampañaRepositorio, CampañaRepositorio>();
+builder.Services.AddScoped<ILeadRepositorio, LeadRepositorio>();
+
+// Servicios
+builder.Services.AddScoped<IServicioCampaña, ServicioCampaña>();
+
+// Configurar el puerto para Railway
 builder.WebHost.UseUrls("http://0.0.0.0:8080");
 
 var app = builder.Build();
 
-// ===== MIGRACIÓN AUTOMÁTICA =====
-using (var scope = app.Services.CreateScope())
+// Ejecutar migraciones automáticamente al iniciar en producción
+if (app.Environment.IsProduction())
 {
-    var services = scope.ServiceProvider;
-    try
+    using (var scope = app.Services.CreateScope())
     {
-        Console.WriteLine("🔄 Aplicando migraciones...");
-        var context = services.GetRequiredService<MarketingDbContext>();
-        context.Database.Migrate();
-        Console.WriteLine("✅ Migraciones aplicadas exitosamente");
-        
-        // Verificar datos
-        var campañasCount = context.Campañas.Count();
-        Console.WriteLine($"📊 Campañas en BD: {campañasCount}");
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"❌ Error en migraciones: {ex.Message}");
-        Console.WriteLine($"StackTrace: {ex.StackTrace}");
+        var dbContext = scope.ServiceProvider.GetRequiredService<MarketingDbContext>();
+        try
+        {
+            dbContext.Database.Migrate();
+            Console.WriteLine("Migraciones aplicadas exitosamente");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error aplicando migraciones: {ex.Message}");
+        }
     }
 }
 
-// Resto de la configuración...
+// Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+else
+{
+    // En producción, también mostrar Swagger
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Marketing La Paz API v1");
+        c.RoutePrefix = string.Empty; // Servir Swagger en la raíz
+    });
+}
 
 app.UseHttpsRedirection();
+app.UseCors("MarketingPolicy");
 app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
 
+// Método para convertir DATABASE_URL de Railway a connection string
 static string ParseDatabaseUrl(string databaseUrl)
 {
+    if (string.IsNullOrEmpty(databaseUrl))
+        return "Host=localhost;Database=MarketingLaPazDB;Username=postgres;Password=password";
+    
     try
     {
         var uri = new Uri(databaseUrl);
@@ -132,6 +115,7 @@ static string ParseDatabaseUrl(string databaseUrl)
     }
     catch (Exception ex)
     {
-        throw new Exception($"Error parseando DATABASE_URL: {ex.Message}");
+        Console.WriteLine($"Error parseando DATABASE_URL: {ex.Message}");
+        return "Host=localhost;Database=MarketingLaPazDB;Username=postgres;Password=password";
     }
 }
