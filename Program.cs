@@ -38,7 +38,7 @@ builder.Services.AddCors(options =>
         policy.WithOrigins(
                 "http://localhost:3000", 
                 "http://127.0.0.1:5500",
-                "https://tu-dominio.railway.app"  // Agrega tu dominio de Railway
+                "https://marketinglapaz-production.up.railway.app/"  // Agrega tu dominio de Railway
             )
             .AllowAnyHeader()
             .AllowAnyMethod()
