@@ -36,7 +36,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy("MarketingPolicy", policy =>
     {
         policy.WithOrigins(
-                "http://localhost:3000", 
+                "http://localhost:3000",
                 "http://127.0.0.1:5500",
                 "https://tu-dominio.railway.app"  // Agrega tu dominio de Railway
             )
@@ -105,12 +105,12 @@ static string ParseDatabaseUrl(string databaseUrl)
 {
     if (string.IsNullOrEmpty(databaseUrl))
         return "Host=localhost;Database=MarketingLaPazDB;Username=postgres;Password=password";
-    
+
     try
     {
         var uri = new Uri(databaseUrl);
         var userInfo = uri.UserInfo.Split(':');
-        
+
         return $"Host={uri.Host};Port={uri.Port};Database={uri.AbsolutePath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};SSL Mode=Require;Trust Server Certificate=true;";
     }
     catch (Exception ex)

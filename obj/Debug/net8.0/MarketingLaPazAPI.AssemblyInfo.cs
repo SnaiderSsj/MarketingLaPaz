@@ -15,7 +15,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MarketingLaPazAPI")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+18b091df4a61122c7a393a909469277c17d1419c")]
 [assembly: System.Reflection.AssemblyProductAttribute("MarketingLaPazAPI")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MarketingLaPazAPI")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
