@@ -7,7 +7,7 @@ using MarketingLaPazAPI.Core.Servicios;
 var builder = WebApplication.CreateBuilder(args);
 
 // Obtener la cadena de conexión de Railway
-var connectionString = Environment.GetEnvironmentVariable("DATABASE_URL");
+var connectionString = Environment.GetEnvironmentVariable("DATABASE");
 Console.WriteLine($"Cadena de conexión: {connectionString}");
 
 // Add services to the container
@@ -18,7 +18,7 @@ builder.Services.AddSwaggerGen();
 // Entity Framework con PostgreSQL para Railway
 if (!string.IsNullOrEmpty(connectionString))
 {
-    // Parsear DATABASE_URL de Railway
+    // Parsear DATABASE de Railway
     var parsedConnectionString = ParseDatabaseUrl(connectionString);
     builder.Services.AddDbContext<MarketingDbContext>(options =>
         options.UseNpgsql(parsedConnectionString));
