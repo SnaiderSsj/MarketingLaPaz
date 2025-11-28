@@ -30,19 +30,32 @@ else
         options.UseNpgsql(builder.Configuration.GetConnectionString("MarketingDB")));
 }
 
-// CORS para producción
+// 🔥 CONFIGURACIÓN CORS ACTUALIZADA 🔥
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("MarketingPolicy", policy =>
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()  // Permite cualquier origen durante desarrollo
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .WithExposedHeaders("*"); // Expone todos los headers
+    });
+    
+    // Política más específica para producción
+    options.AddPolicy("ProductionCors", policy =>
     {
         policy.WithOrigins(
-                "http://localhost:3000",
-                "http://127.0.0.1:5500",
-                "https://tu-dominio.railway.app"  // Agrega tu dominio de Railway
+                "http://localhost:4173",    // Vite Preview
+                "http://localhost:3000",    // React Dev Server
+                "http://127.0.0.1:4173",    // Vite Preview alternativo
+                "http://127.0.0.1:3000",    // React alternativo
+                "https://tu-frontend.railway.app", // Tu frontend en producción
+                "https://marketinglapaz-production.up.railway.app" // Tu backend actual
             )
             .AllowAnyHeader()
             .AllowAnyMethod()
-            .AllowCredentials();
+            .AllowCredentials()
+            .WithExposedHeaders("*");
     });
 });
 
@@ -57,6 +70,18 @@ builder.Services.AddScoped<IServicioCampaña, ServicioCampaña>();
 builder.WebHost.UseUrls("http://0.0.0.0:8080");
 
 var app = builder.Build();
+
+// 🔥 USAR CORS AL INICIO DEL PIPELINE 🔥
+if (app.Environment.IsDevelopment())
+{
+    app.UseCors("AllowAll"); // En desarrollo permite todo
+    Console.WriteLine("✅ CORS configurado para desarrollo: AllowAll");
+}
+else
+{
+    app.UseCors("ProductionCors"); // En producción usa política específica
+    Console.WriteLine("✅ CORS configurado para producción: ProductionCors");
+}
 
 // Ejecutar migraciones automáticamente al iniciar en producción
 if (app.Environment.IsProduction())
@@ -94,7 +119,6 @@ else
 }
 
 app.UseHttpsRedirection();
-app.UseCors("MarketingPolicy");
 app.UseAuthorization();
 app.MapControllers();
 
