@@ -49,7 +49,7 @@ builder.Services.AddCors(options =>
                 "http://localhost:3000",    // React Dev Server
                 "http://127.0.0.1:4173",    // Vite Preview alternativo
                 "http://127.0.0.1:3000",    // React alternativo
-                "https://tu-frontend.railway.app", // Tu frontend en producción
+                "https://marketing-la-paz-frontend-production.up.railway.app/", // Tu frontend en producción
                 "https://marketinglapaz-production.up.railway.app" // Tu backend actual
             )
             .AllowAnyHeader()
